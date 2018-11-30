@@ -101,6 +101,19 @@ type QuarantineConfig struct {
 	AllowLocalAdmins  bool   `yaml:"allowLocalAdmins"`
 }
 
+type StaticContentTryFiles struct {
+	Prefix  string `yaml:"prefix"`
+	Suffix  string `yaml:"suffix"`
+	ContentType string `yaml:"contentType"`
+}
+
+type StaticContentConfig struct {
+	Server    string                 `yaml:"server"`
+	MxcPrefix string                 `yaml:"mxcPrefix"`
+	Directory string                 `yaml:"directory"`
+	TryFiles  []*StaticContentConfig `yaml:"tryFiles"`
+}
+
 type TimeoutsConfig struct {
 	UrlPreviews  int `yaml:"urlPreviewTimeoutSeconds"`
 	Federation   int `yaml:"federationTimeoutSeconds"`
@@ -114,19 +127,20 @@ type MetricsConfig struct {
 }
 
 type MediaRepoConfig struct {
-	General        *GeneralConfig      `yaml:"repo"`
-	Homeservers    []*HomeserverConfig `yaml:"homeservers,flow"`
-	Admins         []string            `yaml:"admins,flow"`
-	Database       *DatabaseConfig     `yaml:"database"`
-	Uploads        *UploadsConfig      `yaml:"uploads"`
-	Downloads      *DownloadsConfig    `yaml:"downloads"`
-	Thumbnails     *ThumbnailsConfig   `yaml:"thumbnails"`
-	UrlPreviews    *UrlPreviewsConfig  `yaml:"urlPreviews"`
-	RateLimit      *RateLimitConfig    `yaml:"rateLimit"`
-	Identicons     *IdenticonsConfig   `yaml:"identicons"`
-	Quarantine     *QuarantineConfig   `yaml:"quarantine"`
-	TimeoutSeconds *TimeoutsConfig     `yaml:"timeouts"`
-	Metrics        *MetricsConfig      `yaml:"metrics"`
+	General        *GeneralConfig         `yaml:"repo"`
+	Homeservers    []*HomeserverConfig    `yaml:"homeservers,flow"`
+	Admins         []string               `yaml:"admins,flow"`
+	Database       *DatabaseConfig        `yaml:"database"`
+	Uploads        *UploadsConfig         `yaml:"uploads"`
+	Downloads      *DownloadsConfig       `yaml:"downloads"`
+	Thumbnails     *ThumbnailsConfig      `yaml:"thumbnails"`
+	UrlPreviews    *UrlPreviewsConfig     `yaml:"urlPreviews"`
+	RateLimit      *RateLimitConfig       `yaml:"rateLimit"`
+	Identicons     *IdenticonsConfig      `yaml:"identicons"`
+	Quarantine     *QuarantineConfig      `yaml:"quarantine"`
+	StaticContents []*StaticContentConfig `yaml:"staticContent,flow"`
+	TimeoutSeconds *TimeoutsConfig        `yaml:"timeouts"`
+	Metrics        *MetricsConfig         `yaml:"metrics"`
 }
 
 var instance *MediaRepoConfig
