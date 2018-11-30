@@ -109,21 +109,9 @@ func FindMinimalMediaRecord(origin string, mediaId string, downloadRemote bool, 
 	if found {
 		media = item.(*types.Media)
 	} else {
-		staticMedia, err := searchStaticMedia(origin, mediaId, log)
+		staticMedia, err := searchStaticMinimalMedia(origin, mediaId, log)
 		if err == nil {
-			stream, err := os.Open(staticMedia.Location)
-			if err != nil {
-				return nil, err
-			}
-			return &types.MinimalMedia{
-				Origin:      staticMedia.Origin,
-				MediaId:     staticMedia.MediaId,
-				ContentType: staticMedia.ContentType,
-				UploadName:  staticMedia.UploadName,
-				SizeBytes:   staticMedia.SizeBytes,
-				Stream:      stream,
-				KnownMedia:  staticMedia,
-			}, nil
+			return staticMedia, nil
 		}
 		log.Info("Getting media record from database")
 		dbMedia, err := db.Get(origin, mediaId)
@@ -229,7 +217,14 @@ func FindMediaRecord(origin string, mediaId string, downloadRemote bool, ctx con
 	return media, nil
 }
 
-func searchStaticMedia(origin string, mediaId string, log *logrus.Entry) (*types.Media, error) {
+type staticMediaReply struct {
+	Path string
+	Filename string
+	ContentType string
+}
+
+func lookupStaticMedia(origin string, mediaId string, log *logrus.Entry) (*staticMediaReply, error) {
+	log.Info("Searching static content")
 	log.Info("Searching static content")
 	for _, v := range config.Get().StaticContents {
 		// first check if it is for our server
@@ -268,42 +263,80 @@ func searchStaticMedia(origin string, mediaId string, log *logrus.Entry) (*types
 			}
 		}
 
-		
 		path += filename
-		file, err := os.Open(path)
-		if err != nil {
-			return nil, common.ErrMediaNotFound
-		}
-		fi, err := file.Stat()
-		if err != nil {
-			return nil, common.ErrMediaNotFound
-		}
-		defer file.Close()
-
-		hash, err := storage.GetFileHash(path)
-		if err != nil {
-			return nil, common.ErrMediaNotFound
-		}
 
 		if contentType == "" {
-			contentType, err = storage.GetFileContentType(path)
+			c, err := storage.GetFileContentType(path)
 			if err != nil {
 				return nil, common.ErrMediaNotFound
 			}
+			contentType = c
 		}
-		log.Info("found valid static file")
-		return &types.Media{
-			Origin: origin,
-			MediaId: mediaId,
-			UploadName: filename,
+		log.Info("matched static content")
+		return &staticMediaReply{
+			Path: path,
+			Filename: filename,
 			ContentType: contentType,
-			UserId: "",
-			Sha256Hash: hash,
-			SizeBytes: fi.Size(),
-			Location: path,
-			CreationTs: fi.ModTime().Unix(),
-			Quarantined: false,
 		}, nil
 	}
 	return nil, common.ErrMediaNotFound
+}
+
+func searchStaticMinimalMedia(origin string, mediaId string, log *logrus.Entry) (*types.MinimalMedia, error) {
+	res, err := lookupStaticMedia(origin, mediaId, log)
+	if err != nil {
+		return nil, common.ErrMediaNotFound
+	}
+
+	file, err := os.Open(res.Path)
+	if err != nil {
+		return nil, common.ErrMediaNotFound
+	}
+
+	log.Info("found valid static file")
+	return &types.MinimalMedia{
+		Origin:      origin,
+		MediaId:     mediaId,
+		ContentType: res.ContentType,
+		UploadName:  res.Filename,
+		SizeBytes:   -1,
+		Stream:      file,
+		KnownMedia:  nil,
+	}, nil
+}
+
+func searchStaticMedia(origin string, mediaId string, log *logrus.Entry) (*types.Media, error) {
+	res, err := lookupStaticMedia(origin, mediaId, log)
+	if err != nil {
+		return nil, common.ErrMediaNotFound
+	}
+
+	file, err := os.Open(res.Path)
+	if err != nil {
+		return nil, common.ErrMediaNotFound
+	}
+	fi, err := file.Stat()
+	if err != nil {
+		return nil, common.ErrMediaNotFound
+	}
+	defer file.Close()
+
+	hash, err := storage.GetFileHash(res.Path)
+	if err != nil {
+		return nil, common.ErrMediaNotFound
+	}
+
+	log.Info("found valid static file")
+	return &types.Media{
+		Origin: origin,
+		MediaId: mediaId,
+		UploadName: res.Filename,
+		ContentType: res.ContentType,
+		UserId: "",
+		Sha256Hash: hash,
+		SizeBytes: fi.Size(),
+		Location: res.Path,
+		CreationTs: fi.ModTime().Unix(),
+		Quarantined: false,
+	}, nil
 }

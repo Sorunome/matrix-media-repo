@@ -43,9 +43,6 @@ func getOrCreateDatastoreWithMediaService(mediaService *stores.MediaStore, baseP
 }
 
 func ResolveMediaLocation(ctx context.Context, log *logrus.Entry, datastoreId string, location string) (string, error) {
-	log.Info("======")
-	log.Info(datastoreId)
-	log.Info(location)
 	if datastoreId == "" {
 		return location, nil
 	}
