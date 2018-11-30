@@ -225,7 +225,6 @@ type staticMediaReply struct {
 
 func lookupStaticMedia(origin string, mediaId string, log *logrus.Entry) (*staticMediaReply, error) {
 	log.Info("Searching static content")
-	log.Info("Searching static content")
 	for _, v := range config.Get().StaticContents {
 		// first check if it is for our server
 		// and check if the MXC url starts with our prefix
@@ -240,7 +239,6 @@ func lookupStaticMedia(origin string, mediaId string, log *logrus.Entry) (*stati
 			return nil, common.ErrMediaNotFound
 		}
 
-		log.Info("matched static content")
 		path := v.Directory + "/"
 		filename := ""
 		contentType := ""
@@ -288,11 +286,6 @@ func searchStaticMinimalMedia(origin string, mediaId string, log *logrus.Entry) 
 		return nil, common.ErrMediaNotFound
 	}
 
-	file, err := os.Open(res.Path)
-	if err != nil {
-		return nil, common.ErrMediaNotFound
-	}
-
 	log.Info("found valid static file")
 	return &types.MinimalMedia{
 		Origin:      origin,
@@ -300,7 +293,7 @@ func searchStaticMinimalMedia(origin string, mediaId string, log *logrus.Entry) 
 		ContentType: res.ContentType,
 		UploadName:  res.Filename,
 		SizeBytes:   -1,
-		Stream:      file,
+		Stream:      nil,
 		KnownMedia:  nil,
 	}, nil
 }
