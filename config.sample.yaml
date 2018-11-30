@@ -237,7 +237,7 @@ quarantine:
 #  - server: t2bot.io # server for which that static content is valid
 #    mxcPrefix: file. # prefix for the mxc url when it triggers
 #    directory: /path/to/folder # folder where the content is
-#    tryFiles: # array of different files to try
+#    tryFiles: # array of different files to try (optional)
 #      - prefix: somefile_ # prefix of the file, optional
 #        suffix: .jpg # suffix of the file, optional
 #        contentType: image/jpeg # content type of the file, optional (auto-detect if not present)

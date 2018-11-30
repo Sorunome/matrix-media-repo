@@ -247,51 +247,63 @@ func searchStaticMedia(origin string, mediaId string, log *logrus.Entry) (*types
 
 		log.Info("matched static content")
 		path := v.Directory + "/"
-
-		for _, t := range v.TryFiles {
-			filename := t.Prefix + sanitizedMediaId + t.Suffix
+		filename := ""
+		contentType := ""
+		if len(v.TryFiles) == 0 {
+			filename = sanitizedMediaId
 			_, err := os.Stat(path + filename)
 			if err != nil {
 				continue
 			}
-			// we have a match!
-			contentType := t.ContentType
-			path += filename
-			file, err := os.Open(path)
-			if err != nil {
-				return nil, common.ErrMediaNotFound
-			}
-			fi, err := file.Stat()
-			if err != nil {
-				return nil, common.ErrMediaNotFound
-			}
-			defer file.Close()
-
-			hash, err := storage.GetFileHash(path)
-			if err != nil {
-				return nil, common.ErrMediaNotFound
-			}
-
-			if contentType == "" {
-				contentType, err = storage.GetFileContentType(path)
+		} else {
+			for _, t := range v.TryFiles {
+				filename = t.Prefix + sanitizedMediaId + t.Suffix
+				_, err := os.Stat(path + filename)
 				if err != nil {
-					return nil, common.ErrMediaNotFound
+					continue
 				}
+				// we have a match!
+				contentType = t.ContentType
+				break
 			}
-			log.Info("found valid static file")
-			return &types.Media{
-				Origin: origin,
-				MediaId: mediaId,
-				UploadName: filename,
-				ContentType: contentType,
-				UserId: "",
-				Sha256Hash: hash,
-				SizeBytes: fi.Size(),
-				Location: path,
-				CreationTs: fi.ModTime().Unix(),
-				Quarantined: false,
-			}, nil
 		}
+
+		
+		path += filename
+		file, err := os.Open(path)
+		if err != nil {
+			return nil, common.ErrMediaNotFound
+		}
+		fi, err := file.Stat()
+		if err != nil {
+			return nil, common.ErrMediaNotFound
+		}
+		defer file.Close()
+
+		hash, err := storage.GetFileHash(path)
+		if err != nil {
+			return nil, common.ErrMediaNotFound
+		}
+
+		if contentType == "" {
+			contentType, err = storage.GetFileContentType(path)
+			if err != nil {
+				return nil, common.ErrMediaNotFound
+			}
+		}
+		log.Info("found valid static file")
+		return &types.Media{
+			Origin: origin,
+			MediaId: mediaId,
+			UploadName: filename,
+			ContentType: contentType,
+			UserId: "",
+			Sha256Hash: hash,
+			SizeBytes: fi.Size(),
+			Location: path,
+			CreationTs: fi.ModTime().Unix(),
+			Quarantined: false,
+		}, nil
 	}
 	return nil, common.ErrMediaNotFound
 }
