@@ -108,10 +108,10 @@ type StaticContentTryFiles struct {
 }
 
 type StaticContentConfig struct {
-	Server    string                 `yaml:"server"`
-	MxcPrefix string                 `yaml:"mxcPrefix"`
-	Directory string                 `yaml:"directory"`
-	TryFiles  []*StaticContentConfig `yaml:"tryFiles"`
+	Server    string                   `yaml:"server"`
+	MxcPrefix string                   `yaml:"mxcPrefix"`
+	Directory string                   `yaml:"directory"`
+	TryFiles  []*StaticContentTryFiles `yaml:"tryFiles"`
 }
 
 type TimeoutsConfig struct {

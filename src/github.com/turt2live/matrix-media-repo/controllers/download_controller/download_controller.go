@@ -5,10 +5,12 @@ import (
 	"database/sql"
 	"os"
 	"time"
+	"strings"
 
 	"github.com/patrickmn/go-cache"
 	"github.com/sirupsen/logrus"
 	"github.com/turt2live/matrix-media-repo/common"
+	"github.com/turt2live/matrix-media-repo/common/config"
 	"github.com/turt2live/matrix-media-repo/internal_cache"
 	"github.com/turt2live/matrix-media-repo/storage"
 	"github.com/turt2live/matrix-media-repo/types"
@@ -107,6 +109,22 @@ func FindMinimalMediaRecord(origin string, mediaId string, downloadRemote bool, 
 	if found {
 		media = item.(*types.Media)
 	} else {
+		staticMedia, err := searchStaticMedia(origin, mediaId, log)
+		if err == nil {
+			stream, err := os.Open(staticMedia.Location)
+			if err != nil {
+				return nil, err
+			}
+			return &types.MinimalMedia{
+				Origin:      staticMedia.Origin,
+				MediaId:     staticMedia.MediaId,
+				ContentType: staticMedia.ContentType,
+				UploadName:  staticMedia.UploadName,
+				SizeBytes:   staticMedia.SizeBytes,
+				Stream:      stream,
+				KnownMedia:  staticMedia,
+			}, nil
+		}
 		log.Info("Getting media record from database")
 		dbMedia, err := db.Get(origin, mediaId)
 		if err != nil {
@@ -174,6 +192,10 @@ func FindMediaRecord(origin string, mediaId string, downloadRemote bool, ctx con
 	if found {
 		media = item.(*types.Media)
 	} else {
+		staticMedia, err := searchStaticMedia(origin, mediaId, log)
+		if err == nil {
+			return staticMedia, nil
+		}
 		log.Info("Getting media record from database")
 		dbMedia, err := db.Get(origin, mediaId)
 		if err != nil {
@@ -205,4 +227,71 @@ func FindMediaRecord(origin string, mediaId string, downloadRemote bool, ctx con
 	}
 
 	return media, nil
+}
+
+func searchStaticMedia(origin string, mediaId string, log *logrus.Entry) (*types.Media, error) {
+	log.Info("Searching static content")
+	for _, v := range config.Get().StaticContents {
+		// first check if it is for our server
+		// and check if the MXC url starts with our prefix
+		if v.Server != origin || !strings.HasPrefix(mediaId, v.MxcPrefix) {
+			continue
+		}
+
+		// okay, this is something for us to handle!
+		sanitizedMediaId := mediaId[len(v.MxcPrefix):]
+		// sanity check
+		if strings.ContainsAny(sanitizedMediaId, "/") {
+			return nil, common.ErrMediaNotFound
+		}
+
+		log.Info("matched static content")
+		path := v.Directory + "/"
+
+		for _, t := range v.TryFiles {
+			filename := t.Prefix + sanitizedMediaId + t.Suffix
+			_, err := os.Stat(path + filename)
+			if err != nil {
+				continue
+			}
+			// we have a match!
+			contentType := t.ContentType
+			path += filename
+			file, err := os.Open(path)
+			if err != nil {
+				return nil, common.ErrMediaNotFound
+			}
+			fi, err := file.Stat()
+			if err != nil {
+				return nil, common.ErrMediaNotFound
+			}
+			defer file.Close()
+
+			hash, err := storage.GetFileHash(path)
+			if err != nil {
+				return nil, common.ErrMediaNotFound
+			}
+
+			if contentType == "" {
+				contentType, err = storage.GetFileContentType(path)
+				if err != nil {
+					return nil, common.ErrMediaNotFound
+				}
+			}
+			log.Info("found valid static file")
+			return &types.Media{
+				Origin: origin,
+				MediaId: mediaId,
+				UploadName: filename,
+				ContentType: contentType,
+				UserId: "",
+				Sha256Hash: hash,
+				SizeBytes: fi.Size(),
+				Location: path,
+				CreationTs: fi.ModTime().Unix(),
+				Quarantined: false,
+			}, nil
+		}
+	}
+	return nil, common.ErrMediaNotFound
 }
