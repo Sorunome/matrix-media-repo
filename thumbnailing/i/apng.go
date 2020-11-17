@@ -41,6 +41,9 @@ func (d apngGenerator) GenerateThumbnail(b []byte, contentType string, width int
 	// prepare a blank frame to use as swap space
 	frameImg := image.NewRGBA(p.Frames[0].Image.Bounds())
 
+	widthRatio := float64(width) / float64(p.Frames[0].Image.Bounds().Dx())
+	heightRatio := float64(width) / float64(p.Frames[0].Image.Bounds().Dy())
+
 	for i, frame := range p.Frames {
 		img := frame.Image
 
@@ -62,8 +65,18 @@ func (d apngGenerator) GenerateThumbnail(b []byte, contentType string, width int
 		}
 
 		p.Frames[i].Image = frameThumb
-		p.Frames[i].XOffset = 0
-		p.Frames[i].YOffset = 0
+
+		newXOffset := int(math.Floor(float64(frame.XOffset) * widthRatio))
+		newYOffset := int(math.Floor(float64(frame.YOffset) * heightRatio))
+		// we need to make sure that these are still in the image bounds
+		if p.Frames[0].Image.Bounds().Dx() <= newXOffset + frameThumb.Bounds().Dx() {
+			newXOffset = p.Frames[0].Image.Bounds().Dx() - frameThumb.Bounds().Dx()
+		}
+		if p.Frames[0].Image.Bounds().Dy() <= newYOffset + frameThumb.Bounds().Dy() {
+			newYOffset = p.Frames[0].Image.Bounds().Dy() - frameThumb.Bounds().Dy()
+		}
+		p.Frames[i].XOffset = newXOffset
+		p.Frames[i].YOffset = newYOffset
 	}
 
 	buf := &bytes.Buffer{}
